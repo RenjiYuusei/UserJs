@@ -1,0 +1,210 @@
+name: JavaScript Producer
+
+on:
+  push:
+    paths:
+      - '**.user.js'
+      - '.github/workflows/**'
+  pull_request:
+    paths:
+      - '**.user.js'
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '20'
+  TERSER_OPTIONS: '--compress drop_console=true,pure_funcs=[console.log] --mangle --comments false'
+  USERJS_DIR: 'userjs'
+
+jobs:
+  process-js:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          npm install -g terser
+
+      - name: Initialize workspace
+        id: init
+        run: |
+          mkdir -p "${{ env.USERJS_DIR }}"
+          touch "${{ env.USERJS_DIR }}/.gitkeep"
+          echo "# Checksums generated on $(date '+%Y-%m-%d %H:%M:%S')" > "${{ env.USERJS_DIR }}/checksums.txt"
+          echo "initial_count=$(find . -name "*.user.js" -not -path "./${{ env.USERJS_DIR }}/*" | wc -l)" >> $GITHUB_OUTPUT
+
+      - name: Process JavaScript files
+        id: process
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          process_script() {
+            local file="$1"
+            local filename=$(basename "$file")
+            local base="${filename%.user.js}"
+            local target_dir="${{ env.USERJS_DIR }}"
+            
+            echo "Processing $filename..."
+            
+            # Extract and validate metadata
+            meta_block=$(awk '/\/\/ ==UserScript==/{p=1;print;next}/\/\/ ==\/UserScript==/{p=0;print;exit}p{print}' "$file")
+            
+            # Validate required metadata
+            for field in "@name" "@version" "@description" "@author"; do
+              if ! echo "$meta_block" | grep -q "$field"; then
+                echo "::error::Missing required metadata $field in $filename"
+                return 1
+              fi
+            done
+            
+            # Update metadata URLs
+            meta_block=$(echo "$meta_block" | sed -E "
+              s|^// @downloadURL .*|// @downloadURL https://github.com/$GITHUB_REPOSITORY/raw/main/$target_dir/${base}.user.js|
+              s|^// @updateURL .*|// @updateURL https://github.com/$GITHUB_REPOSITORY/raw/main/$target_dir/${base}.meta.js|
+              s|^// @supportURL .*|// @supportURL https://github.com/$GITHUB_REPOSITORY/issues|
+              /^\/\/ ==\/UserScript==/ i // @lastModified $(date -u +"%Y-%m-%dT%H:%M:%SZ")
+            ")
+            
+            # Extract code and minify
+            {
+              echo "$meta_block"
+              awk '/\/\/ ==\/UserScript==/{p=1;next}p{print}' "$file" | terser ${{ env.TERSER_OPTIONS }}
+            } > "$target_dir/${base}.user.js"
+            
+            # Save metadata separately
+            echo "$meta_block" > "$target_dir/${base}.meta.js"
+            
+            # Generate checksum
+            echo "$(sha256sum "$target_dir/${base}.user.js" | cut -d' ' -f1)  ${base}.user.js" >> "$target_dir/checksums.txt"
+            
+            echo "✓ Processed: $filename"
+            return 0
+          }
+          
+          export -f process_script
+          
+          # Process all .user.js files not in userjs directory
+          find . -name "*.user.js" -not -path "./${{ env.USERJS_DIR }}/*" -print0 | 
+          while IFS= read -r -d '' file; do
+            if process_script "$file"; then
+              rm -f "$file"  # Remove original after successful processing
+            else
+              exit 1
+            fi
+          done
+          
+          echo "processed_count=$(find "${{ env.USERJS_DIR }}" -name "*.user.js" | wc -l)" >> $GITHUB_OUTPUT
+
+      - name: Update README
+        if: steps.process.outputs.processed_count > 0
+        run: |
+          {
+            cat << 'EOF'
+            <div align="center">
+            
+            # 📦 UserScripts Collection
+            
+            ![Scripts](https://img.shields.io/badge/scripts-${{ steps.process.outputs.processed_count }}-blue?style=flat-square)
+            ![Last Update](https://img.shields.io/github/last-commit/${{ github.repository }}?style=flat-square)
+            ![Build Status](https://github.com/${{ github.repository }}/actions/workflows/js-producer.yml/badge.svg)
+            
+            *Collection of Optimized UserScripts*
+            </div>
+            
+            ## 📜 Available Scripts
+            
+            <table>
+            <tr>
+            <th>Script</th>
+            <th>Details</th>
+            </tr>
+            EOF
+          } > README.md
+          
+          # Add entries for each script
+          find "${{ env.USERJS_DIR }}" -name "*.user.js" -print0 | sort -z |
+          while IFS= read -r -d '' file; do
+            name=$(grep -m 1 "@name" "$file" | sed -E 's/\/\/ @name\s+//')
+            version=$(grep -m 1 "@version" "$file" | sed -E 's/\/\/ @version\s+//')
+            desc=$(grep -m 1 "@description" "$file" | sed -E 's/\/\/ @description\s+//')
+            author=$(grep -m 1 "@author" "$file" | sed -E 's/\/\/ @author\s+//')
+            base=$(basename "$file")
+            
+            cat << EOF >> README.md
+            <tr>
+            <td>
+            <b>$name</b><br>
+            <small>📦 v$version</small><br>
+            <small>👤 $author</small>
+            </td>
+            <td>
+            <p>$desc</p>
+            <p>
+            <a href="https://github.com/${{ github.repository }}/raw/main/${{ env.USERJS_DIR }}/$base">📥 Install</a> |
+            <a href="https://github.com/${{ github.repository }}/blob/main/${{ env.USERJS_DIR }}/$base">📝 Source</a>
+            </p>
+            </td>
+            </tr>
+            EOF
+          done
+          
+          {
+            cat << 'EOF'
+            </table>
+            
+            ## 🔒 Security
+            
+            All scripts are minified for protection and performance. Verify integrity using checksums below.
+            
+            <details>
+            <summary>📝 SHA-256 Checksums</summary>
+            
+            ```
+            EOF
+            
+            cat "${{ env.USERJS_DIR }}/checksums.txt"
+            
+            cat << EOF
+            ```
+            </details>
+            
+            ---
+            <div align="center">
+            <i>Last updated: $(date +'%Y-%m-%d %H:%M:%S')</i>
+            </div>
+            EOF
+          } >> README.md
+
+      - name: Commit changes
+        if: steps.process.outputs.processed_count > 0
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          
+          git add "${{ env.USERJS_DIR }}/" README.md
+          
+          git commit -m "📦 Process UserScripts
+          
+          Stats:
+          - Processed: ${{ steps.process.outputs.processed_count }}/${{ steps.init.outputs.initial_count }}
+          - Updated: $(date +'%Y-%m-%d %H:%M:%S')
+          
+          Changes:
+          - ✨ Updated metadata
+          - 🔒 Generated checksums
+          - 📝 Updated README"
+          
+          git push

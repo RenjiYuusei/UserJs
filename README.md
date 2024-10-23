@@ -1,51 +1,51 @@
 <div align="center">
 
-# 📦 UserScripts Collection
+# 📦 Bộ Sưu Tập UserScript
 
 ![Scripts](https://img.shields.io/badge/scripts-1-blue?style=flat-square)
-![Last Update](https://img.shields.io/github/last-commit/RenjiYuusei/UserJs?style=flat-square)
-![Build Status](https://github.com/RenjiYuusei/UserJs/actions/workflows/js-producer.yml/badge.svg)
+![Cập nhật](https://img.shields.io/github/last-commit/RenjiYuusei/UserJs?style=flat-square)
+![Trạng thái](https://github.com/RenjiYuusei/UserJs/actions/workflows/js-producer.yml/badge.svg)
 
-*Collection of Optimized UserScripts*
+*Bộ sưu tập UserScript đã được tối ưu hóa*
 
 </div>
 
-## 📜 Available Scripts
+## 📜 Danh Sách Script
 
 <table>
 <tr>
 <th>Script</th>
-<th>Details</th>
+<th>Chi tiết</th>
 </tr>
 <tr>
 <td>
-<b>Prevent Tab Inactivity Detection</b><br>
+<b>Ngăn Chặn Phát Hiện Tab Không Hoạt Động</b><br>
 <small>📦 v1.2</small><br>
 <small>👤 Yuusei</small>
 </td>
 <td>
-<p>Prevents websites from detecting when you switch tabs or minimize the window.</p>
+<p>Ngăn chặn các trang web phát hiện khi bạn chuyển tab hoặc thu nhỏ cửa sổ.</p>
 <p>
-<a href="https://github.com/RenjiYuusei/UserJs/raw/main/userjs/PreventPageVisibilityAuto.user.js">📥 Install</a> |
-<a href="https://github.com/RenjiYuusei/UserJs/blob/main/userjs/PreventPageVisibilityAuto.user.js">📝 Source</a>
+<a href="https://github.com/RenjiYuusei/UserJs/raw/main/userjs/PreventPageVisibilityAuto.user.js">📥 Cài đặt</a> |
+<a href="https://github.com/RenjiYuusei/UserJs/blob/main/userjs/PreventPageVisibilityAuto.user.js">📝 Mã nguồn</a>
 </p>
 </td>
 </tr>
 </table>
 
-## 🔒 Security
+## 🔒 Bảo mật
 
-All scripts are minified for protection and performance. Verify integrity using checksums below.
+Tất cả script đều được nén (minify) để bảo vệ và tối ưu hiệu suất. Xác minh tính toàn vẹn bằng checksum bên dưới.
 
 <details>
 <summary>📝 SHA-256 Checksums</summary>
 
 ```
-# Checksums generated on 2024-10-23 13:47:44
+# Checksums generated on 2024-10-23 13:48:16
 ```
 </details>
 
 ---
 <div align="center">
-<i>Last updated: $(date +'%Y-%m-%d %H:%M:%S')</i>
+<i>Cập nhật lần cuối: $(date +'%Y-%m-%d %H:%M:%S')</i>
 </div>

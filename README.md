@@ -41,8 +41,8 @@ All scripts are minified for protection and performance. Verify integrity using 
 <summary>📝 SHA-256 Checksums</summary>
 
 ```
-# Checksums generated on 2024-10-23 13:42:30
-db8401997186a9d182ff418048902636e5b8db4868360c31ab64493bfc74a82d  PreventPageVisibilityAuto.user.js
+# Checksums generated on 2024-10-23 13:47:28
+beaf0ff598f3b4eecf76c1f13da9fd8ea953e840d9ffdd0759e3cc6d331db43d  PreventPageVisibilityAuto.user.js
 ```
 </details>
 

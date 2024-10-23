@@ -14,6 +14,7 @@ env:
   NODE_VERSION: '20'
   TERSER_OPTIONS: '--compress drop_console=true,pure_funcs=[console.log] --mangle --comments false'
   USERJS_DIR: 'userjs'
+  TZ: 'Asia/Ho_Chi_Minh'  # Set timezone to Vietnam
 
 jobs:
   process-js:
@@ -43,7 +44,7 @@ jobs:
         run: |
           mkdir -p "${{ env.USERJS_DIR }}"
           touch "${{ env.USERJS_DIR }}/.gitkeep"
-          echo "# Checksums generated on $(date '+%Y-%m-%d %H:%M:%S')" > "${{ env.USERJS_DIR }}/checksums.txt"
+          echo "# Checksums generated on $(TZ='Asia/Ho_Chi_Minh' date '+%Y-%m-%d %H:%M:%S GMT%z')" > "${{ env.USERJS_DIR }}/checksums.txt"
           echo "initial_count=$(find . -name "*.user.js" -not -path "./${{ env.USERJS_DIR }}/*" | wc -l)" >> $GITHUB_OUTPUT
 
       - name: Process JavaScript files
@@ -51,6 +52,21 @@ jobs:
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
+          calculate_checksums() {
+            local file="$1"
+            local base="$2"
+            local target_dir="$3"
+            
+            # Calculate multiple checksums
+            {
+              echo "SHA-256: $(sha256sum "$file" | cut -d' ' -f1)"
+              echo "MD5: $(md5sum "$file" | cut -d' ' -f1)"
+              echo "SHA-1: $(sha1sum "$file" | cut -d' ' -f1)"
+            } >> "$target_dir/checksums.txt"
+            echo "File: ${base}.user.js" >> "$target_dir/checksums.txt"
+            echo "---" >> "$target_dir/checksums.txt"
+          }
+          
           process_script() {
             local file="$1"
             local filename=$(basename "$file")
@@ -59,27 +75,24 @@ jobs:
             
             echo "Processing $filename..."
             
-            # Extract and validate metadata
+            # Extract and validate metadata with improved multilingual support
             meta_block=$(awk '/\/\/ ==UserScript==/{p=1;print;next}/\/\/ ==\/UserScript==/{p=0;print;exit}p{print}' "$file")
             
-            # Get multilingual metadata
+            # Enhanced multilingual metadata extraction
             get_meta_value() {
               local pattern="$1"
               local meta="$2"
-              local vi_value=$(echo "$meta" | grep -m 1 "@${pattern}:vi" | sed -E "s/\/\/ @${pattern}:vi\s+//")
-              if [ -n "$vi_value" ]; then
-                echo "$vi_value"
-                return
-              fi
-              local en_value=$(echo "$meta" | grep -m 1 "@${pattern}:en" | sed -E "s/\/\/ @${pattern}:en\s+//")
-              if [ -n "$en_value" ]; then
-                echo "$en_value"
-                return
-              fi
-              echo "$meta" | grep -m 1 "@${pattern}" | sed -E "s/\/\/ @${pattern}\s+//"
+              local langs=("vi" "en" "") # Priority order: Vietnamese, English, Default
+              
+              for lang in "${langs[@]}"; do
+                local suffix=""
+                [ -n "$lang" ] && suffix=":$lang"
+                local value=$(echo "$meta" | grep -m 1 "@${pattern}${suffix}" | sed -E "s/\/\/ @${pattern}${suffix}\s+//")
+                [ -n "$value" ] && echo "$value" && return
+              done
             }
 
-            # Get metadata values with language priority
+            # Get metadata values
             local name=$(get_meta_value "name" "$meta_block")
             local description=$(get_meta_value "description" "$meta_block")
             local version=$(echo "$meta_block" | grep -m 1 "@version" | sed -E 's/\/\/ @version\s+//')
@@ -91,37 +104,37 @@ jobs:
               return 1
             fi
             
-            # Update metadata URLs
+            # Update metadata URLs and add Vietnam timezone
             meta_block=$(echo "$meta_block" | sed -E "
               s|^// @downloadURL .*|// @downloadURL https://github.com/$GITHUB_REPOSITORY/raw/main/$target_dir/${base}.user.js|
               s|^// @updateURL .*|// @updateURL https://github.com/$GITHUB_REPOSITORY/raw/main/$target_dir/${base}.meta.js|
               s|^// @supportURL .*|// @supportURL https://github.com/$GITHUB_REPOSITORY/issues|
-              /^\/\/ ==\/UserScript==/ i // @lastModified $(date -u +"%Y-%m-%dT%H:%M:%SZ")
+              /^\/\/ ==\/UserScript==/ i // @lastModified $(TZ='Asia/Ho_Chi_Minh' date +"%Y-%m-%d %H:%M:%S GMT%z")
             ")
             
-            # Extract code and minify
+            # Process and minify code
             {
               echo "$meta_block"
               awk '/\/\/ ==\/UserScript==/{p=1;next}p{print}' "$file" | terser ${{ env.TERSER_OPTIONS }}
             } > "$target_dir/${base}.user.js"
             
-            # Save metadata separately
+            # Save metadata
             echo "$meta_block" > "$target_dir/${base}.meta.js"
             
-            # Generate checksum
-            echo "$(sha256sum "$target_dir/${base}.user.js" | cut -d' ' -f1)  ${base}.user.js" >> "$target_dir/checksums.txt"
+            # Calculate and save multiple checksums
+            calculate_checksums "$target_dir/${base}.user.js" "$base" "$target_dir"
             
             echo "✓ Processed: $filename"
             return 0
           }
           
           export -f process_script
+          export -f calculate_checksums
           
-          # Process all .user.js files not in userjs directory
           find . -name "*.user.js" -not -path "./${{ env.USERJS_DIR }}/*" -print0 | 
           while IFS= read -r -d '' file; do
             if process_script "$file"; then
-              rm -f "$file"  # Remove original after successful processing
+              rm -f "$file"
             else
               exit 1
             fi
@@ -132,7 +145,7 @@ jobs:
       - name: Update README
         if: steps.process.outputs.processed_count > 0
         run: |
-          # Create README content
+          # Create README with enhanced content
           cat > README.md << 'EOL'
           <div align="center">
           
@@ -158,20 +171,16 @@ jobs:
           get_meta_value() {
             local pattern="$1"
             local file="$2"
-            local vi_value=$(grep -m 1 "@${pattern}:vi" "$file" | sed -E "s/\/\/ @${pattern}:vi\s+//")
-            if [ -n "$vi_value" ]; then
-              echo "$vi_value"
-              return
-            fi
-            local en_value=$(grep -m 1 "@${pattern}:en" "$file" | sed -E "s/\/\/ @${pattern}:en\s+//")
-            if [ -n "$en_value" ]; then
-              echo "$en_value"
-              return
-            fi
-            grep -m 1 "@${pattern}" "$file" | sed -E "s/\/\/ @${pattern}\s+//"
+            local langs=("vi" "en" "")
+            
+            for lang in "${langs[@]}"; do
+              local suffix=""
+              [ -n "$lang" ] && suffix=":$lang"
+              local value=$(grep -m 1 "@${pattern}${suffix}" "$file" | sed -E "s/\/\/ @${pattern}${suffix}\s+//")
+              [ -n "$value" ] && echo "$value" && return
+            done
           }
           
-          # Add script entries
           while IFS= read -r -d '' file; do
             name=$(get_meta_value "name" "$file")
             version=$(grep -m 1 "@version" "$file" | sed -E 's/\/\/ @version\s+//')
@@ -197,29 +206,28 @@ jobs:
           EOL
           done < <(find "${{ env.USERJS_DIR }}" -name "*.user.js" -print0 | sort -z)
           
-          # Add footer
           cat >> README.md << 'EOL'
           </table>
           
           ## 🔒 Bảo mật
           
-          Tất cả script đều được nén (minify) để bảo vệ và tối ưu hiệu suất. Xác minh tính toàn vẹn bằng checksum bên dưới.
+          Tất cả script đều được nén (minify) để bảo vệ và tối ưu hiệu suất. Xác minh tính toàn vẹn bằng các checksum bên dưới.
           
           <details>
-          <summary>📝 SHA-256 Checksums</summary>
+          <summary>📝 Checksums (SHA-256, MD5, SHA-1)</summary>
           
-          ```
+          \`\`\`
           EOL
           
           cat "${{ env.USERJS_DIR }}/checksums.txt" >> README.md
           
           cat >> README.md << 'EOL'
-          ```
+          \`\`\`
           </details>
           
           ---
           <div align="center">
-          <i>Cập nhật lần cuối: $(date +'%Y-%m-%d %H:%M:%S')</i>
+          <i>Cập nhật lần cuối: $(TZ='Asia/Ho_Chi_Minh' date +'%Y-%m-%d %H:%M:%S GMT%z')</i>
           </div>
           EOL
 
@@ -235,11 +243,11 @@ jobs:
           
           Thống kê:
           - Đã xử lý: ${{ steps.process.outputs.processed_count }}/${{ steps.init.outputs.initial_count }}
-          - Cập nhật: $(date +'%Y-%m-%d %H:%M:%S')
+          - Cập nhật: $(TZ='Asia/Ho_Chi_Minh' date +'%Y-%m-%d %H:%M:%S GMT%z')
           
           Thay đổi:
           - ✨ Cập nhật metadata
-          - 🔒 Tạo checksums
+          - 🔒 Tạo checksums (SHA-256, MD5, SHA-1)
           - 📝 Cập nhật README"
           
           git push

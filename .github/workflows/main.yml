@@ -62,13 +62,34 @@ jobs:
             # Extract and validate metadata
             meta_block=$(awk '/\/\/ ==UserScript==/{p=1;print;next}/\/\/ ==\/UserScript==/{p=0;print;exit}p{print}' "$file")
             
-            # Validate required metadata
-            for field in "@name" "@version" "@description" "@author"; do
-              if ! echo "$meta_block" | grep -q "$field"; then
-                echo "::error::Missing required metadata $field in $filename"
-                return 1
+            # Get multilingual metadata
+            get_meta_value() {
+              local pattern="$1"
+              local meta="$2"
+              local vi_value=$(echo "$meta" | grep -m 1 "@${pattern}:vi" | sed -E "s/\/\/ @${pattern}:vi\s+//")
+              if [ -n "$vi_value" ]; then
+                echo "$vi_value"
+                return
               fi
-            done
+              local en_value=$(echo "$meta" | grep -m 1 "@${pattern}:en" | sed -E "s/\/\/ @${pattern}:en\s+//")
+              if [ -n "$en_value" ]; then
+                echo "$en_value"
+                return
+              fi
+              echo "$meta" | grep -m 1 "@${pattern}" | sed -E "s/\/\/ @${pattern}\s+//"
+            }
+
+            # Get metadata values with language priority
+            local name=$(get_meta_value "name" "$meta_block")
+            local description=$(get_meta_value "description" "$meta_block")
+            local version=$(echo "$meta_block" | grep -m 1 "@version" | sed -E 's/\/\/ @version\s+//')
+            local author=$(echo "$meta_block" | grep -m 1 "@author" | sed -E 's/\/\/ @author\s+//')
+            
+            # Validate required metadata
+            if [ -z "$name" ] || [ -z "$description" ] || [ -z "$version" ] || [ -z "$author" ]; then
+              echo "::error::Missing required metadata in $filename"
+              return 1
+            fi
             
             # Update metadata URLs
             meta_block=$(echo "$meta_block" | sed -E "
@@ -115,30 +136,46 @@ jobs:
           cat > README.md << 'EOL'
           <div align="center">
           
-          # 📦 UserScripts Collection
+          # 📦 Bộ Sưu Tập UserScript
           
           ![Scripts](https://img.shields.io/badge/scripts-${{ steps.process.outputs.processed_count }}-blue?style=flat-square)
-          ![Last Update](https://img.shields.io/github/last-commit/${{ github.repository }}?style=flat-square)
-          ![Build Status](https://github.com/${{ github.repository }}/actions/workflows/js-producer.yml/badge.svg)
+          ![Cập nhật](https://img.shields.io/github/last-commit/${{ github.repository }}?style=flat-square)
+          ![Trạng thái](https://github.com/${{ github.repository }}/actions/workflows/js-producer.yml/badge.svg)
           
-          *Collection of Optimized UserScripts*
+          *Bộ sưu tập UserScript đã được tối ưu hóa*
           
           </div>
           
-          ## 📜 Available Scripts
+          ## 📜 Danh Sách Script
           
           <table>
           <tr>
           <th>Script</th>
-          <th>Details</th>
+          <th>Chi tiết</th>
           </tr>
           EOL
           
+          get_meta_value() {
+            local pattern="$1"
+            local file="$2"
+            local vi_value=$(grep -m 1 "@${pattern}:vi" "$file" | sed -E "s/\/\/ @${pattern}:vi\s+//")
+            if [ -n "$vi_value" ]; then
+              echo "$vi_value"
+              return
+            fi
+            local en_value=$(grep -m 1 "@${pattern}:en" "$file" | sed -E "s/\/\/ @${pattern}:en\s+//")
+            if [ -n "$en_value" ]; then
+              echo "$en_value"
+              return
+            fi
+            grep -m 1 "@${pattern}" "$file" | sed -E "s/\/\/ @${pattern}\s+//"
+          }
+          
           # Add script entries
           while IFS= read -r -d '' file; do
-            name=$(grep -m 1 "@name" "$file" | sed -E 's/\/\/ @name\s+//')
+            name=$(get_meta_value "name" "$file")
             version=$(grep -m 1 "@version" "$file" | sed -E 's/\/\/ @version\s+//')
-            desc=$(grep -m 1 "@description" "$file" | sed -E 's/\/\/ @description\s+//')
+            desc=$(get_meta_value "description" "$file")
             author=$(grep -m 1 "@author" "$file" | sed -E 's/\/\/ @author\s+//')
             base=$(basename "$file")
             
@@ -152,8 +189,8 @@ jobs:
           <td>
           <p>${desc}</p>
           <p>
-          <a href="https://github.com/${{ github.repository }}/raw/main/${{ env.USERJS_DIR }}/${base}">📥 Install</a> |
-          <a href="https://github.com/${{ github.repository }}/blob/main/${{ env.USERJS_DIR }}/${base}">📝 Source</a>
+          <a href="https://github.com/${{ github.repository }}/raw/main/${{ env.USERJS_DIR }}/${base}">📥 Cài đặt</a> |
+          <a href="https://github.com/${{ github.repository }}/blob/main/${{ env.USERJS_DIR }}/${base}">📝 Mã nguồn</a>
           </p>
           </td>
           </tr>
@@ -164,9 +201,9 @@ jobs:
           cat >> README.md << 'EOL'
           </table>
           
-          ## 🔒 Security
+          ## 🔒 Bảo mật
           
-          All scripts are minified for protection and performance. Verify integrity using checksums below.
+          Tất cả script đều được nén (minify) để bảo vệ và tối ưu hiệu suất. Xác minh tính toàn vẹn bằng checksum bên dưới.
           
           <details>
           <summary>📝 SHA-256 Checksums</summary>
@@ -182,7 +219,7 @@ jobs:
           
           ---
           <div align="center">
-          <i>Last updated: $(date +'%Y-%m-%d %H:%M:%S')</i>
+          <i>Cập nhật lần cuối: $(date +'%Y-%m-%d %H:%M:%S')</i>
           </div>
           EOL
 
@@ -194,15 +231,15 @@ jobs:
           
           git add "${{ env.USERJS_DIR }}/" README.md
           
-          git commit -m "📦 Process UserScripts
+          git commit -m "📦 Xử lý UserScript
           
-          Stats:
-          - Processed: ${{ steps.process.outputs.processed_count }}/${{ steps.init.outputs.initial_count }}
-          - Updated: $(date +'%Y-%m-%d %H:%M:%S')
+          Thống kê:
+          - Đã xử lý: ${{ steps.process.outputs.processed_count }}/${{ steps.init.outputs.initial_count }}
+          - Cập nhật: $(date +'%Y-%m-%d %H:%M:%S')
           
-          Changes:
-          - ✨ Updated metadata
-          - 🔒 Generated checksums
-          - 📝 Updated README"
+          Thay đổi:
+          - ✨ Cập nhật metadata
+          - 🔒 Tạo checksums
+          - 📝 Cập nhật README"
           
           git push

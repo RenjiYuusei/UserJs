@@ -3,8 +3,8 @@
 # 📦 Bộ Sưu Tập UserScript
 
 ![Scripts](https://img.shields.io/badge/scripts-1-blue?style=flat-square)
-![Cập nhật](https://img.shields.io/github/last-commit/RenjiYuusei/UserJs?style=flat-square)
-![Trạng thái](https://github.com/RenjiYuusei/UserJs/actions/workflows/js-producer.yml/badge.svg)
+![Cập nhật](https://img.shields.io/github/last-commit/RenjiYuusei/UserJs/main?style=flat-square&label=Cập%20nhật)
+![Trạng thái](https://img.shields.io/github/actions/workflow/status/RenjiYuusei/UserJs/js-producer.yml?style=flat-square&label=Trạng%20thái)
 
 *Bộ sưu tập UserScript đã được tối ưu hóa*
 
@@ -40,17 +40,17 @@ Tất cả script đều được nén (minify) để bảo vệ và tối ưu h
 <details>
 <summary>📝 Checksums (SHA-256, MD5, SHA-1)</summary>
 
-\`\`\`
-# Checksums generated on 2024-10-23 20:56:26 GMT+0700
-SHA-256: 70b92ba5cb450e68f431f92231fde7c7c3683f6baaf3f4c4f7ecca8db452ef48
-MD5: ea807f0fbd72c0895622096278ca38c4
-SHA-1: 5a186f541e5a33b99ce1014dc4fb8bb9c0715183
+```
+# Checksums generated on 2024-10-23 21:05:57
+SHA-256: 3d1ed6463324e9e57377c97f55f989fc71a72b9033c9f8bc9e980a72e5ea093c
+MD5: 3fc1cbda2a19ce55349b4a8073d46b93
+SHA-1: a3379b3fd66437b92efe986e9457d4e0a6e7011d
 File: instantpage.user.js
 ---
-\`\`\`
+```
 </details>
 
 ---
 <div align="center">
-<i>Cập nhật lần cuối: $(TZ='Asia/Ho_Chi_Minh' date +'%Y-%m-%d %H:%M:%S GMT%z')</i>
+<i>Cập nhật lần cuối: 2024-10-23 21:05:57</i>
 </div>

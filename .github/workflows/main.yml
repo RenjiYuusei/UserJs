@@ -111,31 +111,30 @@ jobs:
       - name: Update README
         if: steps.process.outputs.processed_count > 0
         run: |
-          {
-            cat << 'EOF'
-            <div align="center">
-            
-            # 📦 UserScripts Collection
-            
-            ![Scripts](https://img.shields.io/badge/scripts-${{ steps.process.outputs.processed_count }}-blue?style=flat-square)
-            ![Last Update](https://img.shields.io/github/last-commit/${{ github.repository }}?style=flat-square)
-            ![Build Status](https://github.com/${{ github.repository }}/actions/workflows/js-producer.yml/badge.svg)
-            
-            *Collection of Optimized UserScripts*
-            </div>
-            
-            ## 📜 Available Scripts
-            
-            <table>
-            <tr>
-            <th>Script</th>
-            <th>Details</th>
-            </tr>
-            EOF
-          } > README.md
+          # Create README content
+          cat > README.md << 'EOL'
+          <div align="center">
           
-          # Add entries for each script
-          find "${{ env.USERJS_DIR }}" -name "*.user.js" -print0 | sort -z |
+          # 📦 UserScripts Collection
+          
+          ![Scripts](https://img.shields.io/badge/scripts-${{ steps.process.outputs.processed_count }}-blue?style=flat-square)
+          ![Last Update](https://img.shields.io/github/last-commit/${{ github.repository }}?style=flat-square)
+          ![Build Status](https://github.com/${{ github.repository }}/actions/workflows/js-producer.yml/badge.svg)
+          
+          *Collection of Optimized UserScripts*
+          
+          </div>
+          
+          ## 📜 Available Scripts
+          
+          <table>
+          <tr>
+          <th>Script</th>
+          <th>Details</th>
+          </tr>
+          EOL
+          
+          # Add script entries
           while IFS= read -r -d '' file; do
             name=$(grep -m 1 "@name" "$file" | sed -E 's/\/\/ @name\s+//')
             version=$(grep -m 1 "@version" "$file" | sed -E 's/\/\/ @version\s+//')
@@ -143,50 +142,49 @@ jobs:
             author=$(grep -m 1 "@author" "$file" | sed -E 's/\/\/ @author\s+//')
             base=$(basename "$file")
             
-            cat << EOF >> README.md
-            <tr>
-            <td>
-            <b>$name</b><br>
-            <small>📦 v$version</small><br>
-            <small>👤 $author</small>
-            </td>
-            <td>
-            <p>$desc</p>
-            <p>
-            <a href="https://github.com/${{ github.repository }}/raw/main/${{ env.USERJS_DIR }}/$base">📥 Install</a> |
-            <a href="https://github.com/${{ github.repository }}/blob/main/${{ env.USERJS_DIR }}/$base">📝 Source</a>
-            </p>
-            </td>
-            </tr>
-            EOF
-          done
+            cat >> README.md << EOL
+          <tr>
+          <td>
+          <b>${name}</b><br>
+          <small>📦 v${version}</small><br>
+          <small>👤 ${author}</small>
+          </td>
+          <td>
+          <p>${desc}</p>
+          <p>
+          <a href="https://github.com/${{ github.repository }}/raw/main/${{ env.USERJS_DIR }}/${base}">📥 Install</a> |
+          <a href="https://github.com/${{ github.repository }}/blob/main/${{ env.USERJS_DIR }}/${base}">📝 Source</a>
+          </p>
+          </td>
+          </tr>
+          EOL
+          done < <(find "${{ env.USERJS_DIR }}" -name "*.user.js" -print0 | sort -z)
           
-          {
-            cat << 'EOF'
-            </table>
-            
-            ## 🔒 Security
-            
-            All scripts are minified for protection and performance. Verify integrity using checksums below.
-            
-            <details>
-            <summary>📝 SHA-256 Checksums</summary>
-            
-            ```
-            EOF
-            
-            cat "${{ env.USERJS_DIR }}/checksums.txt"
-            
-            cat << EOF
-            ```
-            </details>
-            
-            ---
-            <div align="center">
-            <i>Last updated: $(date +'%Y-%m-%d %H:%M:%S')</i>
-            </div>
-            EOF
-          } >> README.md
+          # Add footer
+          cat >> README.md << 'EOL'
+          </table>
+          
+          ## 🔒 Security
+          
+          All scripts are minified for protection and performance. Verify integrity using checksums below.
+          
+          <details>
+          <summary>📝 SHA-256 Checksums</summary>
+          
+          ```
+          EOL
+          
+          cat "${{ env.USERJS_DIR }}/checksums.txt" >> README.md
+          
+          cat >> README.md << 'EOL'
+          ```
+          </details>
+          
+          ---
+          <div align="center">
+          <i>Last updated: $(date +'%Y-%m-%d %H:%M:%S')</i>
+          </div>
+          EOL
 
       - name: Commit changes
         if: steps.process.outputs.processed_count > 0

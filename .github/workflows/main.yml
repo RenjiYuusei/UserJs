@@ -14,7 +14,7 @@ env:
   NODE_VERSION: '20'
   TERSER_OPTIONS: '--compress drop_console=true,pure_funcs=[console.log] --mangle --comments false'
   USERJS_DIR: 'userjs'
-  TZ: 'Asia/Ho_Chi_Minh'  # Set timezone to Vietnam
+  TZ: 'Asia/Ho_Chi_Minh'
 
 jobs:
   process-js:
@@ -39,12 +39,17 @@ jobs:
         run: |
           npm install -g terser
 
+      - name: Set current date
+        id: date
+        run: |
+          echo "CURRENT_DATE=$(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
+
       - name: Initialize workspace
         id: init
         run: |
           mkdir -p "${{ env.USERJS_DIR }}"
           touch "${{ env.USERJS_DIR }}/.gitkeep"
-          echo "# Checksums generated on $(TZ='Asia/Ho_Chi_Minh' date '+%Y-%m-%d %H:%M:%S GMT%z')" > "${{ env.USERJS_DIR }}/checksums.txt"
+          echo "# Checksums generated on ${{ env.CURRENT_DATE }}" > "${{ env.USERJS_DIR }}/checksums.txt"
           echo "initial_count=$(find . -name "*.user.js" -not -path "./${{ env.USERJS_DIR }}/*" | wc -l)" >> $GITHUB_OUTPUT
 
       - name: Process JavaScript files
@@ -57,7 +62,6 @@ jobs:
             local base="$2"
             local target_dir="$3"
             
-            # Calculate multiple checksums
             {
               echo "SHA-256: $(sha256sum "$file" | cut -d' ' -f1)"
               echo "MD5: $(md5sum "$file" | cut -d' ' -f1)"
@@ -75,14 +79,13 @@ jobs:
             
             echo "Processing $filename..."
             
-            # Extract and validate metadata with improved multilingual support
+            # Extract and validate metadata
             meta_block=$(awk '/\/\/ ==UserScript==/{p=1;print;next}/\/\/ ==\/UserScript==/{p=0;print;exit}p{print}' "$file")
             
-            # Enhanced multilingual metadata extraction
             get_meta_value() {
               local pattern="$1"
               local meta="$2"
-              local langs=("vi" "en" "") # Priority order: Vietnamese, English, Default
+              local langs=("vi" "en" "")
               
               for lang in "${langs[@]}"; do
                 local suffix=""
@@ -104,12 +107,12 @@ jobs:
               return 1
             fi
             
-            # Update metadata URLs and add Vietnam timezone
+            # Update metadata URLs
             meta_block=$(echo "$meta_block" | sed -E "
               s|^// @downloadURL .*|// @downloadURL https://github.com/$GITHUB_REPOSITORY/raw/main/$target_dir/${base}.user.js|
               s|^// @updateURL .*|// @updateURL https://github.com/$GITHUB_REPOSITORY/raw/main/$target_dir/${base}.meta.js|
               s|^// @supportURL .*|// @supportURL https://github.com/$GITHUB_REPOSITORY/issues|
-              /^\/\/ ==\/UserScript==/ i // @lastModified $(TZ='Asia/Ho_Chi_Minh' date +"%Y-%m-%d %H:%M:%S GMT%z")
+              /^\/\/ ==\/UserScript==/ i // @lastModified ${{ env.CURRENT_DATE }}
             ")
             
             # Process and minify code
@@ -124,18 +127,20 @@ jobs:
             # Calculate and save multiple checksums
             calculate_checksums "$target_dir/${base}.user.js" "$base" "$target_dir"
             
-            echo "✓ Processed: $filename"
+            # Remove original file
+            rm -f "$file"
+            
+            echo "✓ Processed and removed: $filename"
             return 0
           }
           
           export -f process_script
           export -f calculate_checksums
           
+          # Process all .user.js files not in userjs directory
           find . -name "*.user.js" -not -path "./${{ env.USERJS_DIR }}/*" -print0 | 
           while IFS= read -r -d '' file; do
-            if process_script "$file"; then
-              rm -f "$file"
-            else
+            if ! process_script "$file"; then
               exit 1
             fi
           done
@@ -145,15 +150,15 @@ jobs:
       - name: Update README
         if: steps.process.outputs.processed_count > 0
         run: |
-          # Create README with enhanced content
-          cat > README.md << 'EOL'
+          # Create README content
+          cat > README.md << EOL
           <div align="center">
           
           # 📦 Bộ Sưu Tập UserScript
           
           ![Scripts](https://img.shields.io/badge/scripts-${{ steps.process.outputs.processed_count }}-blue?style=flat-square)
-          ![Cập nhật](https://img.shields.io/github/last-commit/${{ github.repository }}?style=flat-square)
-          ![Trạng thái](https://github.com/${{ github.repository }}/actions/workflows/js-producer.yml/badge.svg)
+          ![Cập nhật](https://img.shields.io/github/last-commit/${{ github.repository }}/main?style=flat-square&label=Cập%20nhật)
+          ![Trạng thái](https://img.shields.io/github/actions/workflow/status/${{ github.repository }}/js-producer.yml?style=flat-square&label=Trạng%20thái)
           
           *Bộ sưu tập UserScript đã được tối ưu hóa*
           
@@ -206,7 +211,7 @@ jobs:
           EOL
           done < <(find "${{ env.USERJS_DIR }}" -name "*.user.js" -print0 | sort -z)
           
-          cat >> README.md << 'EOL'
+          cat >> README.md << EOL
           </table>
           
           ## 🔒 Bảo mật
@@ -217,17 +222,13 @@ jobs:
           <summary>📝 Checksums (SHA-256, MD5, SHA-1)</summary>
           
           \`\`\`
-          EOL
-          
-          cat "${{ env.USERJS_DIR }}/checksums.txt" >> README.md
-          
-          cat >> README.md << 'EOL'
+          $(cat "${{ env.USERJS_DIR }}/checksums.txt")
           \`\`\`
           </details>
           
           ---
           <div align="center">
-          <i>Cập nhật lần cuối: $(TZ='Asia/Ho_Chi_Minh' date +'%Y-%m-%d %H:%M:%S GMT%z')</i>
+          <i>Cập nhật lần cuối: ${{ env.CURRENT_DATE }}</i>
           </div>
           EOL
 
@@ -238,16 +239,18 @@ jobs:
           git config --local user.name "github-actions[bot]"
           
           git add "${{ env.USERJS_DIR }}/" README.md
+          git add -A  # Add all changes including deletions
           
           git commit -m "📦 Xử lý UserScript
           
           Thống kê:
           - Đã xử lý: ${{ steps.process.outputs.processed_count }}/${{ steps.init.outputs.initial_count }}
-          - Cập nhật: $(TZ='Asia/Ho_Chi_Minh' date +'%Y-%m-%d %H:%M:%S GMT%z')
+          - Cập nhật: ${{ env.CURRENT_DATE }}
           
           Thay đổi:
           - ✨ Cập nhật metadata
           - 🔒 Tạo checksums (SHA-256, MD5, SHA-1)
-          - 📝 Cập nhật README"
+          - 📝 Cập nhật README
+          - 🗑️ Xóa tệp gốc sau khi xử lý"
           
           git push

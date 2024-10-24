@@ -55,16 +55,11 @@ Tất cả script đều được nén (minify) để bảo vệ và tối ưu h
 <summary>📝 Checksums (SHA-256, MD5, SHA-1)</summary>
 
 ```
-# Checksums generated on 2024-10-24 20:00:48
-SHA-256: 2e4fab1abdc0537111b7d90c6b7f5b1ce8f8e592d87b2c119225913b5f4cd6d4
-MD5: 54c699fc3e66c6b60a2e5ee144002821
-SHA-1: 30f55db62e0fa82d4856abcac1f6bbe0b7cc2a17
-File: Anti-debugger.user.js
----
+# Checksums generated on 2024-10-24 20:07:38
 ```
 </details>
 
 ---
 <div align="center">
-<i>Cập nhật lần cuối: 2024-10-24 20:00:48</i>
+<i>Cập nhật lần cuối: 2024-10-24 20:07:38</i>
 </div>

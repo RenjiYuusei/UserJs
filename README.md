@@ -2,7 +2,7 @@
 
 # 📦 Bộ Sưu Tập UserScript
 
-![Scripts](https://img.shields.io/badge/scripts-1-blue?style=flat-square)
+![Scripts](https://img.shields.io/badge/scripts-2-blue?style=flat-square)
 ![Cập nhật](https://img.shields.io/github/last-commit/RenjiYuusei/UserJs/main?style=flat-square&label=Cập%20nhật)
 ![Trạng thái](https://img.shields.io/github/actions/workflow/status/RenjiYuusei/UserJs/js-producer.yml?style=flat-square&label=Trạng%20thái)
 
@@ -16,6 +16,20 @@
 <tr>
 <th>Script</th>
 <th>Chi tiết</th>
+</tr>
+<tr>
+<td>
+<b>Chống Anti-debugger</b><br>
+<small>📦 v1.6</small><br>
+<small>👤 Yuusei</small>
+</td>
+<td>
+<p>Bảo vệ chống lại lỗi gỡ lỗi với hiệu suất và tính năng được cải thiện. Cố gắng khắc phục sự cố phát lại video.</p>
+<p>
+<a href="https://github.com/RenjiYuusei/UserJs/raw/main/userjs/Anti-debugger.user.js">📥 Cài đặt</a> |
+<a href="https://github.com/RenjiYuusei/UserJs/blob/main/userjs/Anti-debugger.user.js">📝 Mã nguồn</a>
+</p>
+</td>
 </tr>
 <tr>
 <td>
@@ -41,16 +55,16 @@ Tất cả script đều được nén (minify) để bảo vệ và tối ưu h
 <summary>📝 Checksums (SHA-256, MD5, SHA-1)</summary>
 
 ```
-# Checksums generated on 2024-10-23 21:05:57
-SHA-256: 3d1ed6463324e9e57377c97f55f989fc71a72b9033c9f8bc9e980a72e5ea093c
-MD5: 3fc1cbda2a19ce55349b4a8073d46b93
-SHA-1: a3379b3fd66437b92efe986e9457d4e0a6e7011d
-File: instantpage.user.js
+# Checksums generated on 2024-10-24 20:00:48
+SHA-256: 2e4fab1abdc0537111b7d90c6b7f5b1ce8f8e592d87b2c119225913b5f4cd6d4
+MD5: 54c699fc3e66c6b60a2e5ee144002821
+SHA-1: 30f55db62e0fa82d4856abcac1f6bbe0b7cc2a17
+File: Anti-debugger.user.js
 ---
 ```
 </details>
 
 ---
 <div align="center">
-<i>Cập nhật lần cuối: 2024-10-23 21:05:57</i>
+<i>Cập nhật lần cuối: 2024-10-24 20:00:48</i>
 </div>

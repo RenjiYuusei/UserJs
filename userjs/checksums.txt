@@ -1,6 +1,6 @@
-# Checksums generated on 2024-10-23 21:05:57
-SHA-256: 3d1ed6463324e9e57377c97f55f989fc71a72b9033c9f8bc9e980a72e5ea093c
-MD5: 3fc1cbda2a19ce55349b4a8073d46b93
-SHA-1: a3379b3fd66437b92efe986e9457d4e0a6e7011d
-File: instantpage.user.js
+# Checksums generated on 2024-10-24 20:00:48
+SHA-256: 2e4fab1abdc0537111b7d90c6b7f5b1ce8f8e592d87b2c119225913b5f4cd6d4
+MD5: 54c699fc3e66c6b60a2e5ee144002821
+SHA-1: 30f55db62e0fa82d4856abcac1f6bbe0b7cc2a17
+File: Anti-debugger.user.js
 ---

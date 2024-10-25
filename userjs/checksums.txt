@@ -1,1 +1,6 @@
-# Checksums generated on 2024-10-25 07:47:09
+# Checksums generated on 2024-10-25 08:05:51
+SHA-256: f0545ed3efed2a526dd2720783187150274c46fd26203a9cbebb0f92f95b7ecb
+MD5: 0c16079e41b87c1c07e98b96c8e22039
+SHA-1: b349fe3f11fb84a19de5691a0da708701c389b40
+File: Javascript-css-beautify.user.js
+---

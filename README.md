@@ -2,11 +2,12 @@
 
 # 📦 Bộ Sưu Tập UserScript
 
-![Scripts](https://img.shields.io/badge/scripts-1-blue?style=flat-square)
+![Scripts](https://img.shields.io/badge/scripts-2-blue?style=flat-square)
 ![Cập nhật](https://img.shields.io/github/last-commit/RenjiYuusei/UserJs/main?style=flat-square&label=Cập%20nhật)
 ![Trạng thái](https://img.shields.io/github/actions/workflow/status/RenjiYuusei/UserJs/js-producer.yml?style=flat-square&label=Trạng%20thái)
+[![Xem issues](https://img.shields.io/github/issues/RenjiYuusei/UserJs?style=flat-square&label=Issues)](https://github.com/RenjiYuusei/UserJs/issues)
 
-*Bộ sưu tập UserScript đã được tối ưu hóa*
+*Bộ sưu tập UserScript được tối ưu hóa và cập nhật tự động*
 
 </div>
 
@@ -16,6 +17,20 @@
 <tr>
 <th>Script</th>
 <th>Chi tiết</th>
+</tr>
+<tr>
+<td>
+<b>Javascript-css beautify</b><br>
+<small>📦 v4.1.2</small><br>
+<small>👤 Zzbaivong</small>
+</td>
+<td>
+<p>Định dạng và làm đẹp mã nguồn JavaScript, JSON, CSS. Từ bản v4.1+, một vài định dạng khác cũng được hỗ trợ .</p>
+<p>
+<a href="https://github.com/RenjiYuusei/UserJs/raw/main/userjs/Javascript-css-beautify.user.js">📥 Cài đặt</a> |
+<a href="https://github.com/RenjiYuusei/UserJs/blob/main/userjs/Javascript-css-beautify.user.js">📝 Mã nguồn</a>
+</p>
+</td>
 </tr>
 <tr>
 <td>
@@ -33,19 +48,31 @@
 </tr>
 </table>
 
-## 🔒 Bảo mật
+## 🔒 Tính năng
 
-Tất cả script đều được nén (minify) để bảo vệ và tối ưu hiệu suất. Xác minh tính toàn vẹn bằng các checksum bên dưới.
+- ✨ Tự động cập nhật metadata và URL
+- 📦 Tối ưu và nén mã nguồn
+- 🔄 Tính toán và lưu trữ checksums
+- 🚀 Cập nhật hàng ngày
 
 <details>
 <summary>📝 Checksums (SHA-256, MD5, SHA-1)</summary>
 
 ```
-# Checksums generated on 2024-10-25 07:47:09
+# Checksums generated on 2024-10-25 08:05:51
+SHA-256: f0545ed3efed2a526dd2720783187150274c46fd26203a9cbebb0f92f95b7ecb
+MD5: 0c16079e41b87c1c07e98b96c8e22039
+SHA-1: b349fe3f11fb84a19de5691a0da708701c389b40
+File: Javascript-css-beautify.user.js
+---
 ```
 </details>
 
+## 📄 Giấy phép
+
+Phân phối dưới giấy phép GPL 3.0. Xem `LICENSE` để biết thêm thông tin.
+
 ---
 <div align="center">
-<i>Cập nhật lần cuối: 2024-10-25 07:47:09</i>
+<i>Cập nhật lần cuối: 2024-10-25 08:05:51</i>
 </div>

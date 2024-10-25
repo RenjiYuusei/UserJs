@@ -2,7 +2,7 @@
 
 # 📦 Bộ Sưu Tập UserScript
 
-![Scripts](https://img.shields.io/badge/scripts-2-blue?style=flat-square)
+![Scripts](https://img.shields.io/badge/scripts-1-blue?style=flat-square)
 ![Cập nhật](https://img.shields.io/github/last-commit/RenjiYuusei/UserJs/main?style=flat-square&label=Cập%20nhật)
 ![Trạng thái](https://img.shields.io/github/actions/workflow/status/RenjiYuusei/UserJs/js-producer.yml?style=flat-square&label=Trạng%20thái)
 
@@ -16,20 +16,6 @@
 <tr>
 <th>Script</th>
 <th>Chi tiết</th>
-</tr>
-<tr>
-<td>
-<b>Chống Anti-debugger</b><br>
-<small>📦 v1.6</small><br>
-<small>👤 Yuusei</small>
-</td>
-<td>
-<p>Bảo vệ chống lại lỗi gỡ lỗi với hiệu suất và tính năng được cải thiện. Cố gắng khắc phục sự cố phát lại video.</p>
-<p>
-<a href="https://github.com/RenjiYuusei/UserJs/raw/main/userjs/Anti-debugger.user.js">📥 Cài đặt</a> |
-<a href="https://github.com/RenjiYuusei/UserJs/blob/main/userjs/Anti-debugger.user.js">📝 Mã nguồn</a>
-</p>
-</td>
 </tr>
 <tr>
 <td>
@@ -55,11 +41,11 @@ Tất cả script đều được nén (minify) để bảo vệ và tối ưu h
 <summary>📝 Checksums (SHA-256, MD5, SHA-1)</summary>
 
 ```
-# Checksums generated on 2024-10-24 20:07:38
+# Checksums generated on 2024-10-25 07:30:49
 ```
 </details>
 
 ---
 <div align="center">
-<i>Cập nhật lần cuối: 2024-10-24 20:07:38</i>
+<i>Cập nhật lần cuối: 2024-10-25 07:30:49</i>
 </div>

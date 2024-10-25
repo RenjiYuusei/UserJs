@@ -70,6 +70,30 @@ jobs:
             echo "File: ${base}.user.js" >> "$target_dir/checksums.txt"
             echo "---" >> "$target_dir/checksums.txt"
           }
+
+          # Function to handle file deletions
+          handle_file_deletion() {
+            local deleted_file="$1"
+            local target_dir="$2"
+            
+            # If a .user.js file is deleted
+            if [[ "$deleted_file" =~ \.user\.js$ ]]; then
+              local base="${deleted_file%.user.js}"
+              # Remove corresponding .meta.js file if it exists
+              if [ -f "$target_dir/${base}.meta.js" ]; then
+                rm -f "$target_dir/${base}.meta.js"
+                echo "✓ Removed related meta file: ${base}.meta.js"
+              fi
+            # If a .meta.js file is deleted
+            elif [[ "$deleted_file" =~ \.meta\.js$ ]]; then
+              local base="${deleted_file%.meta.js}"
+              # Remove corresponding .user.js file if it exists
+              if [ -f "$target_dir/${base}.user.js" ]; then
+                rm -f "$target_dir/${base}.user.js"
+                echo "✓ Removed related user script: ${base}.user.js"
+              fi
+            fi
+          }
           
           process_script() {
             local file="$1"
@@ -112,7 +136,7 @@ jobs:
               s|^// @downloadURL .*|// @downloadURL https://github.com/$GITHUB_REPOSITORY/raw/main/$target_dir/${base}.user.js|
               s|^// @updateURL .*|// @updateURL https://github.com/$GITHUB_REPOSITORY/raw/main/$target_dir/${base}.meta.js|
               s|^// @supportURL .*|// @supportURL https://github.com/$GITHUB_REPOSITORY/issues|
-              /^\/\/ ==\/UserScript==/ i // @lastModified ${{ env.CURRENT_DATE }}
+              /^\/\/ ==\/UserScript==/  }}
             ")
             
             # Process and minify code
@@ -136,6 +160,7 @@ jobs:
           
           export -f process_script
           export -f calculate_checksums
+          export -f handle_file_deletion
           
           # Process all .user.js files not in userjs directory
           find . -name "*.user.js" -not -path "./${{ env.USERJS_DIR }}/*" -print0 | 
@@ -144,6 +169,17 @@ jobs:
               exit 1
             fi
           done
+
+          # Handle deleted files by comparing with previous commit
+          deleted_files=$(git diff --name-only --diff-filter=D HEAD^ HEAD)
+          if [ -n "$deleted_files" ]; then
+            echo "Processing deleted files..."
+            while IFS= read -r file; do
+              if [[ "$file" =~ \.user\.js$|\.meta\.js$ ]] && [[ "$file" =~ ^${{ env.USERJS_DIR }}/ ]]; then
+                handle_file_deletion "$(basename "$file")" "${{ env.USERJS_DIR }}"
+              fi
+            done <<< "$deleted_files"
+          fi
           
           echo "processed_count=$(find "${{ env.USERJS_DIR }}" -name "*.user.js" | wc -l)" >> $GITHUB_OUTPUT
 
@@ -233,7 +269,7 @@ jobs:
           EOL
 
       - name: Commit changes
-        if: steps.process.outputs.processed_count > 0
+        if: steps.process.outputs.processed_count > 0 || git diff --name-only | grep -q "${{ env.USERJS_DIR }}"
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
@@ -251,6 +287,7 @@ jobs:
           - ✨ Cập nhật metadata
           - 🔒 Tạo checksums (SHA-256, MD5, SHA-1)
           - 📝 Cập nhật README
-          - 🗑️ Xóa tệp gốc sau khi xử lý"
+          - 🗑️ Xóa tệp gốc sau khi xử lý
+          - 🧹 Xử lý các tệp đã xóa"
           
           git push

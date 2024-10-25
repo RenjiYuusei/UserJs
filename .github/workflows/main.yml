@@ -9,10 +9,12 @@ on:
     paths:
       - '**.user.js'
   workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * *'  # Daily rebuild at midnight
 
 env:
   NODE_VERSION: '20'
-  TERSER_OPTIONS: '--compress drop_console=true,pure_funcs=[console.log] --mangle --comments false'
+  TERSER_OPTIONS: '--mangle --comments false'  # Removed console.log dropping
   USERJS_DIR: 'userjs'
   TZ: 'Asia/Ho_Chi_Minh'
 
@@ -22,7 +24,7 @@ jobs:
     permissions:
       contents: write
       id-token: write
-    
+      
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -30,19 +32,19 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set up Node.js
+      - name: Setup Node.js environment
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
 
       - name: Install dependencies
         run: |
-          npm install -g terser
+          npm install -g terser prettier
 
       - name: Set current date
         id: date
         run: |
-          echo "CURRENT_DATE=$(date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
+          echo "CURRENT_DATE=$(TZ=${{ env.TZ }} date +'%Y-%m-%d %H:%M:%S')" >> $GITHUB_ENV
 
       - name: Initialize workspace
         id: init
@@ -57,6 +59,7 @@ jobs:
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
+          # Function to calculate multiple checksums
           calculate_checksums() {
             local file="$1"
             local base="$2"
@@ -66,9 +69,24 @@ jobs:
               echo "SHA-256: $(sha256sum "$file" | cut -d' ' -f1)"
               echo "MD5: $(md5sum "$file" | cut -d' ' -f1)"
               echo "SHA-1: $(sha1sum "$file" | cut -d' ' -f1)"
+              echo "File: ${base}.user.js"
+              echo "---"
             } >> "$target_dir/checksums.txt"
-            echo "File: ${base}.user.js" >> "$target_dir/checksums.txt"
-            echo "---" >> "$target_dir/checksums.txt"
+          }
+
+          # Function to validate metadata
+          validate_metadata() {
+            local meta="$1"
+            local file="$2"
+            local required_fields=("name" "description" "version" "author")
+            
+            for field in "${required_fields[@]}"; do
+              if ! echo "$meta" | grep -q "@$field"; then
+                echo "::error::Missing required @$field metadata in $file"
+                return 1
+              fi
+            done
+            return 0
           }
 
           # Function to handle file deletions
@@ -76,139 +94,87 @@ jobs:
             local deleted_file="$1"
             local target_dir="$2"
             
-            # If a .user.js file is deleted
-            if [[ "$deleted_file" =~ \.user\.js$ ]]; then
-              local base="${deleted_file%.user.js}"
-              # Remove corresponding .meta.js file if it exists
-              if [ -f "$target_dir/${base}.meta.js" ]; then
-                rm -f "$target_dir/${base}.meta.js"
-                echo "✓ Removed related meta file: ${base}.meta.js"
-              fi
-            # If a .meta.js file is deleted
-            elif [[ "$deleted_file" =~ \.meta\.js$ ]]; then
-              local base="${deleted_file%.meta.js}"
-              # Remove corresponding .user.js file if it exists
-              if [ -f "$target_dir/${base}.user.js" ]; then
-                rm -f "$target_dir/${base}.user.js"
-                echo "✓ Removed related user script: ${base}.user.js"
-              fi
+            if [[ "$deleted_file" =~ \.(user|meta)\.js$ ]]; then
+              local base="${deleted_file%.*}"
+              rm -f "$target_dir/${base}.user.js" "$target_dir/${base}.meta.js"
+              echo "✓ Removed files for: $base"
             fi
           }
-          
+
+          # Function to process individual script
           process_script() {
             local file="$1"
             local filename=$(basename "$file")
             local base="${filename%.user.js}"
             local target_dir="${{ env.USERJS_DIR }}"
-            
-            echo "Processing $filename..."
-            
-            # Extract and validate metadata
-            meta_block=$(awk '/\/\/ ==UserScript==/{p=1;print;next}/\/\/ ==\/UserScript==/{p=0;print;exit}p{print}' "$file")
-            
-            get_meta_value() {
-              local pattern="$1"
-              local meta="$2"
-              local langs=("vi" "en" "")
-              
-              for lang in "${langs[@]}"; do
-                local suffix=""
-                [ -n "$lang" ] && suffix=":$lang"
-                local value=$(echo "$meta" | grep -m 1 "@${pattern}${suffix}" | sed -E "s/\/\/ @${pattern}${suffix}\s+//")
-                [ -n "$value" ] && echo "$value" && return
-              done
-            }
 
-            # Get metadata values
-            local name=$(get_meta_value "name" "$meta_block")
-            local description=$(get_meta_value "description" "$meta_block")
-            local version=$(echo "$meta_block" | grep -m 1 "@version" | sed -E 's/\/\/ @version\s+//')
-            local author=$(echo "$meta_block" | grep -m 1 "@author" | sed -E 's/\/\/ @author\s+//')
-            
-            # Validate required metadata
-            if [ -z "$name" ] || [ -z "$description" ] || [ -z "$version" ] || [ -z "$author" ]; then
-              echo "::error::Missing required metadata in $filename"
+            echo "Processing $filename..."
+
+            # Extract metadata block
+            meta_block=$(awk '/\/\/ ==UserScript==/{p=1;print;next}/\/\/ ==\/UserScript==/{p=0;print;exit}p{print}' "$file")
+
+            # Validate metadata
+            if ! validate_metadata "$meta_block" "$filename"; then
               return 1
             fi
-            
+
             # Update metadata URLs
             meta_block=$(echo "$meta_block" | sed -E "
               s|^// @downloadURL .*|// @downloadURL https://github.com/$GITHUB_REPOSITORY/raw/main/$target_dir/${base}.user.js|
               s|^// @updateURL .*|// @updateURL https://github.com/$GITHUB_REPOSITORY/raw/main/$target_dir/${base}.meta.js|
               s|^// @supportURL .*|// @supportURL https://github.com/$GITHUB_REPOSITORY/issues|
-              /^\/\/ ==\/UserScript==/  }}
+              s|^// @homepageURL .*|// @homepageURL https://github.com/$GITHUB_REPOSITORY|
             ")
-            
+
+            # Format metadata block
+            meta_block=$(echo "$meta_block" | prettier --parser=babel)
+
             # Process and minify code
             {
               echo "$meta_block"
               awk '/\/\/ ==\/UserScript==/{p=1;next}p{print}' "$file" | terser ${{ env.TERSER_OPTIONS }}
             } > "$target_dir/${base}.user.js"
-            
+
             # Save metadata
             echo "$meta_block" > "$target_dir/${base}.meta.js"
-            
-            # Calculate and save multiple checksums
+
+            # Calculate checksums
             calculate_checksums "$target_dir/${base}.user.js" "$base" "$target_dir"
-            
-            # Remove original file
-            rm -f "$file"
-            
-            echo "✓ Processed and removed: $filename"
+
+            echo "✓ Processed: $filename"
             return 0
           }
-          
+
           export -f process_script
           export -f calculate_checksums
+          export -f validate_metadata
           export -f handle_file_deletion
-          
-          # Process all .user.js files not in userjs directory
-          find . -name "*.user.js" -not -path "./${{ env.USERJS_DIR }}/*" -print0 | 
+
+          # Process new/modified scripts
+          find . -name "*.user.js" -not -path "./${{ env.USERJS_DIR }}/*" -print0 |
           while IFS= read -r -d '' file; do
             if ! process_script "$file"; then
               exit 1
             fi
           done
 
-          # Handle deleted files by comparing with previous commit
+          # Handle deleted files
           deleted_files=$(git diff --name-only --diff-filter=D HEAD^ HEAD)
           if [ -n "$deleted_files" ]; then
             echo "Processing deleted files..."
             while IFS= read -r file; do
-              if [[ "$file" =~ \.user\.js$|\.meta\.js$ ]] && [[ "$file" =~ ^${{ env.USERJS_DIR }}/ ]]; then
+              if [[ "$file" =~ ^${{ env.USERJS_DIR }}/ ]]; then
                 handle_file_deletion "$(basename "$file")" "${{ env.USERJS_DIR }}"
               fi
             done <<< "$deleted_files"
           fi
-          
+
           echo "processed_count=$(find "${{ env.USERJS_DIR }}" -name "*.user.js" | wc -l)" >> $GITHUB_OUTPUT
 
       - name: Update README
+        if: steps.process.outputs.processed_count > 0
         run: |
-          # Create base README content
-          cat > README.md << EOL
-          <div align="center">
-          
-          # 📦 Bộ Sưu Tập UserScript
-          
-          ![Scripts](https://img.shields.io/badge/scripts-${{ steps.process.outputs.processed_count }}-blue?style=flat-square)
-          ![Cập nhật](https://img.shields.io/github/last-commit/${{ github.repository }}/main?style=flat-square&label=Cập%20nhật)
-          ![Trạng thái](https://img.shields.io/github/actions/workflow/status/${{ github.repository }}/js-producer.yml?style=flat-square&label=Trạng%20thái)
-          
-          *Bộ sưu tập UserScript đã được tối ưu hóa*
-          
-          </div>
-          
-          ## 📜 Danh Sách Script
-          
-          <table>
-          <tr>
-          <th>Script</th>
-          <th>Chi tiết</th>
-          </tr>
-          EOL
-          
-          # Function to get metadata values with language fallback
+          # Function to get metadata value with language fallback
           get_meta_value() {
             local pattern="$1"
             local file="$2"
@@ -221,23 +187,40 @@ jobs:
               [ -n "$value" ] && echo "$value" && return
             done
           }
+
+          # Create README content
+          cat > README.md << EOL
+          <div align="center">
           
-          # Check if there are any .user.js files
-          if [ -d "${{ env.USERJS_DIR }}" ] && [ -n "$(find "${{ env.USERJS_DIR }}" -maxdepth 1 -name "*.user.js" -print -quit)" ]; then
-            while IFS= read -r -d '' file; do
-              # Skip if file doesn't exist (in case it was deleted)
-              [ ! -f "$file" ] && continue
-              
-              name=$(get_meta_value "name" "$file")
-              version=$(grep -m 1 "@version" "$file" | sed -E 's/\/\/ @version\s+//')
-              desc=$(get_meta_value "description" "$file")
-              author=$(grep -m 1 "@author" "$file" | sed -E 's/\/\/ @author\s+//')
-              base=$(basename "$file")
-              
-              # Skip if required metadata is missing
-              [ -z "$name" ] || [ -z "$version" ] || [ -z "$desc" ] || [ -z "$author" ] && continue
-              
-              cat >> README.md << EOL
+          # 📦 Bộ Sưu Tập UserScript
+          
+          ![Scripts](https://img.shields.io/badge/scripts-${{ steps.process.outputs.processed_count }}-blue?style=flat-square)
+          ![Cập nhật](https://img.shields.io/github/last-commit/${{ github.repository }}/main?style=flat-square&label=Cập%20nhật)
+          ![Trạng thái](https://img.shields.io/github/actions/workflow/status/${{ github.repository }}/js-producer.yml?style=flat-square&label=Trạng%20thái)
+          [![Xem issues](https://img.shields.io/github/issues/${{ github.repository }}?style=flat-square&label=Issues)](https://github.com/${{ github.repository }}/issues)
+          
+          *Bộ sưu tập UserScript được tối ưu hóa và cập nhật tự động*
+          
+          </div>
+
+          ## 📜 Danh Sách Script
+
+          <table>
+          <tr>
+          <th>Script</th>
+          <th>Chi tiết</th>
+          </tr>
+          EOL
+
+          # Generate script entries
+          while IFS= read -r -d '' file; do
+            name=$(get_meta_value "name" "$file")
+            version=$(grep -m 1 "@version" "$file" | sed -E 's/\/\/ @version\s+//')
+            desc=$(get_meta_value "description" "$file")
+            author=$(grep -m 1 "@author" "$file" | sed -E 's/\/\/ @author\s+//')
+            base=$(basename "$file")
+            
+            cat >> README.md << EOL
           <tr>
           <td>
           <b>${name}</b><br>
@@ -253,32 +236,31 @@ jobs:
           </td>
           </tr>
           EOL
-            done < <(find "${{ env.USERJS_DIR }}" -maxdepth 1 -name "*.user.js" -print0 | sort -z)
-          else
-            # No scripts found, add a message
-            cat >> README.md << EOL
-          <tr>
-          <td colspan="2" align="center"><i>Chưa có script nào.</i></td>
-          </tr>
-          EOL
-          fi
-          
-          # Add security section and footer
+          done < <(find "${{ env.USERJS_DIR }}" -name "*.user.js" -print0 | sort -z)
+
+          # Add footer sections
           cat >> README.md << EOL
           </table>
-          
-          ## 🔒 Bảo mật
-          
-          Tất cả script đều được nén (minify) để bảo vệ và tối ưu hiệu suất. Xác minh tính toàn vẹn bằng các checksum bên dưới.
-          
+
+          ## 🔒 Tính năng
+
+          - ✨ Tự động cập nhật metadata và URL
+          - 📦 Tối ưu và nén mã nguồn
+          - 🔄 Tính toán và lưu trữ checksums
+          - 🚀 Cập nhật hàng ngày
+
           <details>
           <summary>📝 Checksums (SHA-256, MD5, SHA-1)</summary>
-          
+
           \`\`\`
-          $(cat "${{ env.USERJS_DIR }}/checksums.txt" 2>/dev/null || echo "# Chưa có checksums")
+          $(cat "${{ env.USERJS_DIR }}/checksums.txt")
           \`\`\`
           </details>
-          
+
+          ## 📄 Giấy phép
+
+          Phân phối dưới giấy phép GPL 3.0. Xem \`LICENSE\` để biết thêm thông tin.
+
           ---
           <div align="center">
           <i>Cập nhật lần cuối: ${{ env.CURRENT_DATE }}</i>
@@ -286,7 +268,7 @@ jobs:
           EOL
 
       - name: Commit changes
-        if: steps.process.outputs.processed_count > 0 || git diff --name-only | grep -q "${{ env.USERJS_DIR }}"
+        if: steps.process.outputs.processed_count > 0 || github.event_name == 'schedule'
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
@@ -294,17 +276,15 @@ jobs:
           git add "${{ env.USERJS_DIR }}/" README.md
           git add -A  # Add all changes including deletions
           
-          git commit -m "📦 Xử lý UserScript
-          
+          git commit -m "📦 Cập nhật UserScript
+
           Thống kê:
           - Đã xử lý: ${{ steps.process.outputs.processed_count }}/${{ steps.init.outputs.initial_count }}
           - Cập nhật: ${{ env.CURRENT_DATE }}
-          
+
           Thay đổi:
           - ✨ Cập nhật metadata
-          - 🔒 Tạo checksums (SHA-256, MD5, SHA-1)
-          - 📝 Cập nhật README
-          - 🗑️ Xóa tệp gốc sau khi xử lý
-          - 🧹 Xử lý các tệp đã xóa"
+          - 📝 Tạo checksums
+          - 📖 Cập nhật README"
           
           git push

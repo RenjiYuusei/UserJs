@@ -184,9 +184,8 @@ jobs:
           echo "processed_count=$(find "${{ env.USERJS_DIR }}" -name "*.user.js" | wc -l)" >> $GITHUB_OUTPUT
 
       - name: Update README
-        if: steps.process.outputs.processed_count > 0
         run: |
-          # Create README content
+          # Create base README content
           cat > README.md << EOL
           <div align="center">
           
@@ -209,6 +208,7 @@ jobs:
           </tr>
           EOL
           
+          # Function to get metadata values with language fallback
           get_meta_value() {
             local pattern="$1"
             local file="$2"
@@ -222,14 +222,22 @@ jobs:
             done
           }
           
-          while IFS= read -r -d '' file; do
-            name=$(get_meta_value "name" "$file")
-            version=$(grep -m 1 "@version" "$file" | sed -E 's/\/\/ @version\s+//')
-            desc=$(get_meta_value "description" "$file")
-            author=$(grep -m 1 "@author" "$file" | sed -E 's/\/\/ @author\s+//')
-            base=$(basename "$file")
-            
-            cat >> README.md << EOL
+          # Check if there are any .user.js files
+          if [ -d "${{ env.USERJS_DIR }}" ] && [ -n "$(find "${{ env.USERJS_DIR }}" -maxdepth 1 -name "*.user.js" -print -quit)" ]; then
+            while IFS= read -r -d '' file; do
+              # Skip if file doesn't exist (in case it was deleted)
+              [ ! -f "$file" ] && continue
+              
+              name=$(get_meta_value "name" "$file")
+              version=$(grep -m 1 "@version" "$file" | sed -E 's/\/\/ @version\s+//')
+              desc=$(get_meta_value "description" "$file")
+              author=$(grep -m 1 "@author" "$file" | sed -E 's/\/\/ @author\s+//')
+              base=$(basename "$file")
+              
+              # Skip if required metadata is missing
+              [ -z "$name" ] || [ -z "$version" ] || [ -z "$desc" ] || [ -z "$author" ] && continue
+              
+              cat >> README.md << EOL
           <tr>
           <td>
           <b>${name}</b><br>
@@ -245,8 +253,17 @@ jobs:
           </td>
           </tr>
           EOL
-          done < <(find "${{ env.USERJS_DIR }}" -name "*.user.js" -print0 | sort -z)
+            done < <(find "${{ env.USERJS_DIR }}" -maxdepth 1 -name "*.user.js" -print0 | sort -z)
+          else
+            # No scripts found, add a message
+            cat >> README.md << EOL
+          <tr>
+          <td colspan="2" align="center"><i>Chưa có script nào.</i></td>
+          </tr>
+          EOL
+          fi
           
+          # Add security section and footer
           cat >> README.md << EOL
           </table>
           
@@ -258,7 +275,7 @@ jobs:
           <summary>📝 Checksums (SHA-256, MD5, SHA-1)</summary>
           
           \`\`\`
-          $(cat "${{ env.USERJS_DIR }}/checksums.txt")
+          $(cat "${{ env.USERJS_DIR }}/checksums.txt" 2>/dev/null || echo "# Chưa có checksums")
           \`\`\`
           </details>
           
